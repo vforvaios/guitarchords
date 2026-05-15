@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chord Queue Trainer</title>
+
+<style>
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    background:#0f1115;
+    color:white;
+    font-family:Arial,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    padding:20px;
+}
+
+.container{
+    width:100%;
+    max-width:1200px;
+    text-align:center;
+}
+
+h1{
+    margin-bottom:10px;
+    font-size:2.5rem;
+}
+
+.subtitle{
+    color:#999;
+    margin-bottom:30px;
+}
+
+.currentChord{
+    font-size:9rem;
+    font-weight:bold;
+    margin:20px 0;
+    transition:transform .15s ease;
+    user-select:none;
+}
+
+.pulse{
+    transform:scale(1.08);
+}
+
+.queue{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    flex-wrap:wrap;
+    margin:30px 0;
+}
+
+.queueChord{
+    background:#1d2330;
+    padding:16px 22px;
+    border-radius:14px;
+    font-size:2rem;
+    min-width:90px;
+    transition:all .2s ease;
+    opacity:.45;
+    user-select:none;
+}
+
+.active{
+    background:#4f7cff;
+    opacity:1;
+    transform:scale(1.12);
+}
+
+.next{
+    opacity:.9;
+}
+
+.controls{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:15px;
+    margin-top:30px;
+}
+
+.control{
+    background:#1b1f27;
+    padding:15px;
+    border-radius:14px;
+}
+
+label{
+    display:block;
+    margin-bottom:8px;
+    color:#bbb;
+    font-size:.95rem;
+}
+
+input,button{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    font-size:1rem;
+}
+
+input{
+    background:#2a2f3a;
+    color:white;
+}
+
+button{
+    background:#4f7cff;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+    transition:.2s;
+}
+
+button:hover{
+    opacity:.9;
+    transform:translateY(-1px);
+}
+
+.beat{
+    margin-top:15px;
+    font-size:1.5rem;
+    color:#4f7cff;
+}
+
+.status{
+    margin-top:20px;
+    color:#777;
+}
+
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>Chord Queue Trainer</h1>
+
+    <div class="subtitle">
+        Random chord practice with BPM clock & live queue
+    </div>
+
+    <div id="currentChord" class="currentChord">C</div>
+
+    <div id="queue" class="queue"></div>
+
+    <div id="beatDisplay" class="beat">Beat 1</div>
+
+    <div class="controls">
+
+        <div class="control">
+            <label>BPM</label>
+            <input type="number" id="bpm" value="80" min="30" max="240">
+        </div>
+
+        <div class="control">
+            <label>Beats per Chord</label>
+            <input type="number" id="beatsPerChord" value="4" min="1" max="16">
+        </div>
+
+        <div class="control">
+            <label>Visible Queue Length</label>
+            <input type="number" id="queueLength" value="8" min="2" max="20">
+        </div>
+
+        <div class="control">
+            <label>Chord List</label>
+            <input
+                type="text"
+                id="chordsInput"
+                value="C,D,Em,E,A,Am,G,F,Dm">
+        </div>
+
+        <div class="control">
+            <label>Start / Stop</label>
+            <button id="toggleBtn">START</button>
+        </div>
+
+        <div class="control">
+            <label>Shuffle Queue</label>
+            <button id="shuffleBtn">SHUFFLE</button>
+        </div>
+
+    </div>
+
+    <div class="status">
+        SPACE = Start / Stop
+    </div>
+
+</div>
+
+<script>
+
+const currentChordEl = document.getElementById("currentChord");
+const queueEl = document.getElementById("queue");
+const beatDisplay = document.getElementById("beatDisplay");
+
+const bpmInput = document.getElementById("bpm");
+const beatsPerChordInput = document.getElementById("beatsPerChord");
+const chordsInput = document.getElementById("chordsInput");
+const queueLengthInput = document.getElementById("queueLength");
+
+const toggleBtn = document.getElementById("toggleBtn");
+const shuffleBtn = document.getElementById("shuffleBtn");
+
+let interval = null;
+let running = false;
+
+let beat = 0;
+
+let queue = [];
+let currentIndex = 0;
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playClick(accent = false){
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.frequency.value = accent ? 1200 : 800;
+    gain.gain.value = 0.05;
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        audioCtx.currentTime + 0.05
+    );
+
+    osc.stop(audioCtx.currentTime + 0.05);
+}
+
+function getChordPool(){
+
+    return chordsInput.value
+        .split(",")
+        .map(c => c.trim())
+        .filter(Boolean);
+}
+
+function generateQueue(){
+
+    const pool = getChordPool();
+
+    const length = parseInt(queueLengthInput.value);
+
+    queue = [];
+
+    let previous = null;
+
+    for(let i = 0; i < length; i++){
+
+        let next;
+
+        do{
+            next = pool[Math.floor(Math.random() * pool.length)];
+        }while(next === previous && pool.length > 1);
+
+        queue.push(next);
+
+        previous = next;
+    }
+
+    currentIndex = 0;
+
+    renderQueue();
+
+    updateCurrentChord();
+}
+
+function renderQueue(){
+
+    queueEl.innerHTML = "";
+
+    queue.forEach((chord,index)=>{
+
+        const div = document.createElement("div");
+
+        div.className = "queueChord";
+
+        if(index === currentIndex){
+            div.classList.add("active");
+        }
+        else if(index === currentIndex + 1){
+            div.classList.add("next");
+        }
+
+        div.textContent = chord;
+
+        queueEl.appendChild(div);
+    });
+}
+
+function updateCurrentChord(){
+
+    currentChordEl.textContent = queue[currentIndex];
+
+    currentChordEl.classList.add("pulse");
+
+    setTimeout(()=>{
+        currentChordEl.classList.remove("pulse");
+    },120);
+
+    renderQueue();
+}
+
+function advanceChord(){
+
+    currentIndex++;
+
+    if(currentIndex >= queue.length){
+        generateQueue();
+    }
+
+    updateCurrentChord();
+}
+
+function startTrainer(){
+
+    if(audioCtx.state === "suspended"){
+        audioCtx.resume();
+    }
+
+    clearInterval(interval);
+
+    generateQueue();
+
+    const bpm = parseInt(bpmInput.value);
+
+    const beatsPerChord = parseInt(beatsPerChordInput.value);
+
+    const intervalMs = (60 / bpm) * 1000;
+
+    beat = 0;
+
+    beatDisplay.textContent = "Beat 1";
+
+    interval = setInterval(()=>{
+
+        beat++;
+
+        const beatInBar = ((beat - 1) % beatsPerChord) + 1;
+
+        beatDisplay.textContent = `Beat ${beatInBar}`;
+
+        playClick(beatInBar === 1);
+
+        if(beatInBar === 1 && beat > 1){
+            advanceChord();
+        }
+
+    }, intervalMs);
+
+    running = true;
+
+    toggleBtn.textContent = "STOP";
+}
+
+function stopTrainer(){
+
+    clearInterval(interval);
+
+    running = false;
+
+    toggleBtn.textContent = "START";
+}
+
+toggleBtn.addEventListener("click", ()=>{
+
+    if(!running){
+        startTrainer();
+    }else{
+        stopTrainer();
+    }
+
+});
+
+shuffleBtn.addEventListener("click", ()=>{
+
+    generateQueue();
+
+    beat = 0;
+
+    beatDisplay.textContent = "Beat 1";
+
+});
+
+document.addEventListener("keydown",(e)=>{
+
+    if(e.code === "Space"){
+
+        e.preventDefault();
+
+        if(!running){
+            startTrainer();
+        }else{
+            stopTrainer();
+        }
+    }
+
+});
+
+generateQueue();
+
+</script>
+
+</body>
+</html>
