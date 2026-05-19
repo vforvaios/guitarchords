@@ -4,8 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chord Queue Trainer</title>
+
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#4f7cff" />
+
     <style>
       * {
         box-sizing: border-box;
@@ -101,7 +103,8 @@
       }
 
       input,
-      button {
+      button,
+      select {
         width: 100%;
         padding: 12px;
         border: none;
@@ -109,7 +112,8 @@
         font-size: 1rem;
       }
 
-      input {
+      input,
+      select {
         background: #2a2f3a;
         color: white;
       }
@@ -139,6 +143,7 @@
       }
     </style>
   </head>
+
   <body>
     <div class="container">
       <h1>Chord Queue Trainer</h1>
@@ -170,7 +175,17 @@
         </div>
 
         <div class="control">
+          <label>Display Mode</label>
+
+          <select id="displayMode">
+            <option value="queue">Queue</option>
+            <option value="single">Single Chord</option>
+          </select>
+        </div>
+
+        <div class="control">
           <label>Chord List</label>
+
           <input type="text" id="chordsInput" value="C,D,Em,E,A,Am,G,F,Dm" />
         </div>
 
@@ -201,6 +216,8 @@
       const toggleBtn = document.getElementById("toggleBtn");
       const shuffleBtn = document.getElementById("shuffleBtn");
 
+      const displayMode = document.getElementById("displayMode");
+
       let interval = null;
       let running = false;
 
@@ -215,13 +232,10 @@
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
 
-        // πιο επιθετικός ήχος metronome
         osc.type = "square";
 
-        // διαφορετική συχνότητα για accented beat
         osc.frequency.value = accent ? 2200 : 1400;
 
-        // δυνατό volume
         gain.gain.setValueAtTime(accent ? 0.45 : 0.28, audioCtx.currentTime);
 
         osc.connect(gain);
@@ -229,7 +243,6 @@
 
         osc.start();
 
-        // γρήγορο sharp decay
         gain.gain.exponentialRampToValueAtTime(
           0.0001,
           audioCtx.currentTime + 0.035,
@@ -276,7 +289,13 @@
       function renderQueue() {
         queueEl.innerHTML = "";
 
+        const mode = displayMode.value;
+
         queue.forEach((chord, index) => {
+          if (mode === "single" && index !== currentIndex) {
+            return;
+          }
+
           const div = document.createElement("div");
 
           div.className = "queueChord";
@@ -375,6 +394,10 @@
         beat = 0;
 
         beatDisplay.textContent = "Beat 1";
+      });
+
+      displayMode.addEventListener("change", () => {
+        renderQueue();
       });
 
       document.addEventListener("keydown", (e) => {
