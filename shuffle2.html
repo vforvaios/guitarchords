@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="el">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🎈 ΣΧΟΛΙΚΗ ΚΛΗΡΩΣΗ ΔΩΡΩΝ 🎈</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        /* Παιδικό, φωτεινό background με απαλή διαβάθμιση */
+        background: linear-gradient(135deg, #ffdee9 0%, #b5fffc 100%);
+        color: #333;
+        font-family: "Comic Sans MS", "Chalkboard SE", "Arial", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 1000px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 30px;
+        border-radius: 30px;
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        border: 4px solid #ffd43b;
+      }
+
+      h1 {
+        margin-top: 0;
+        margin-bottom: 5px;
+        font-size: 3rem;
+        color: #ff4757;
+        text-shadow: 2px 2px 0px #ffd43b;
+      }
+
+      .subtitle {
+        color: #57606f;
+        font-size: 1.2rem;
+        margin-bottom: 25px;
+        font-weight: bold;
+      }
+
+      /* Ο μεγάλος τυχερός αριθμός */
+      .currentChord {
+        font-size: 10rem;
+        font-weight: bold;
+        margin: 15px 0;
+        transition: transform 0.15s ease;
+        user-select: none;
+        color: #2ed573;
+        text-shadow: 4px 4px 0px #2f3542;
+        display: inline-block;
+      }
+
+      .pulse {
+        transform: scale(1.2) rotate(5deg);
+      }
+
+      .beat {
+        margin-top: 5px;
+        font-size: 2rem;
+        color: #ff6b81;
+        font-weight: bold;
+        background: #fff;
+        padding: 10px 20px;
+        border-radius: 20px;
+        display: inline-block;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      }
+
+      /* Ιστορικό Νικητών */
+      .queue {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin: 30px 0;
+        max-height: 220px;
+        overflow-y: auto;
+        padding: 15px;
+        background: #f1f2f6;
+        border-radius: 20px;
+        border: 2px dashed #ced6e0;
+      }
+
+      .queueChord {
+        background: #ffffff;
+        padding: 12px 20px;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
+        user-select: none;
+        border: 3px solid #70a1ff;
+        color: #2f3542;
+      }
+
+      /* Πάνελ Χειρισμού */
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-top: 30px;
+        background: #ffa502;
+        padding: 20px;
+        border-radius: 25px;
+        box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .control {
+        background: white;
+        padding: 12px;
+        border-radius: 18px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      }
+
+      label {
+        display: block;
+        margin-bottom: 6px;
+        color: #57606f;
+        font-size: 0.95rem;
+        font-weight: bold;
+      }
+
+      input,
+      button {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ced6e0;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        font-family: inherit;
+        text-align: center;
+      }
+
+      input {
+        background: #f8f9fa;
+        color: #23272a;
+        font-weight: bold;
+      }
+
+      input:focus {
+        border-color: #ff4757;
+        outline: none;
+      }
+
+      /* 3D Κουμπιά για παιδικό εφέ */
+      button {
+        background: #ff4757;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+        border-bottom: 5px solid #ff2a3a;
+        transition: all 0.1s ease;
+      }
+
+      button:hover {
+        transform: translateY(2px);
+        border-bottom-width: 3px;
+      }
+
+      button:active {
+        transform: translateY(5px);
+        border-bottom-width: 0px;
+      }
+
+      .reset-btn {
+        background: #747d8c !important;
+        border-bottom: 5px solid #57606f !important;
+      }
+
+      #drawBtn {
+        background: #2ed573;
+        border-bottom: 5px solid #26af5f;
+        font-size: 1.3rem;
+      }
+
+      .status {
+        margin-top: 20px;
+        color: #57606f;
+        font-size: 0.9rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>🎉 ΣΧΟΛΙΚΗ ΚΛΗΡΩΣΗ 🎉</h1>
+
+      <div class="subtitle">
+        🎁 Ώρα για δώρα! Κληρώνουμε λαχνούς χωρίς να ξαναβγαίνουν οι ίδιοι! 🎈
+      </div>
+
+      <div id="winnerDisplay" class="currentChord">🎈</div>
+
+      <br />
+      <div id="giftDisplay" class="beat">🎁 Έτοιμοι για την κλήρωση!</div>
+
+      <div id="historyQueue" class="queue">
+        <span style="color: #a4b0be">Εδώ θα φαίνονται οι τυχεροί!</span>
+      </div>
+
+      <div class="controls">
+        <div class="control">
+          <label>🎁 Όνομα Δώρου</label>
+          <input type="text" id="giftInput" value="Δώρο 1" />
+        </div>
+
+        <div class="control">
+          <label>🎫 Πρώτος Λαχνός</label>
+          <input type="number" id="startTicket" value="1" min="1" />
+        </div>
+
+        <div class="control">
+          <label>🎫 Τελευταίος Λαχνός</label>
+          <input type="number" id="endTicket" value="100" min="1" />
+        </div>
+
+        <div class="control">
+          <label>🚀 Ξεκινάμε!</label>
+          <button id="drawBtn">🎰 ΚΛΗΡΩΣΗ!</button>
+        </div>
+
+        <div class="control">
+          <label>🔄 Από την αρχή</label>
+          <button id="resetBtn" class="reset-btn">ΜΗΔΕΝΙΣΜΟΣ</button>
+        </div>
+      </div>
+
+      <div class="status">⌨️ Μπορείς να πατήσεις και το SPACE για κλήρωση!</div>
+    </div>
+
+    <script>
+      const winnerDisplay = document.getElementById("winnerDisplay");
+      const giftDisplay = document.getElementById("giftDisplay");
+      const historyQueue = document.getElementById("historyQueue");
+
+      const giftInput = document.getElementById("giftInput");
+      const startTicketInput = document.getElementById("startTicket");
+      const endTicketInput = document.getElementById("endTicket");
+
+      const drawBtn = document.getElementById("drawBtn");
+      const resetBtn = document.getElementById("resetBtn");
+
+      let winningHistory = [];
+
+      function drawWinner() {
+        const giftName = giftInput.value.trim() || "Δώρο";
+        const start = parseInt(startTicketInput.value);
+        const end = parseInt(endTicketInput.value);
+
+        if (isNaN(start) || (!isNaN(end) && start > end)) {
+          alert("Ωχ! Βάλε σωστά νούμερα στα εισιτήρια (Από μικρό σε μεγάλο).");
+          return;
+        }
+
+        let availableTickets = [];
+        for (let i = start; i <= end; i++) {
+          const alreadyWon = winningHistory.some((item) => item.ticket === i);
+          if (!alreadyWon) {
+            availableTickets.push(i);
+          }
+        }
+
+        if (availableTickets.length === 0) {
+          alert(
+            "Τέλος οι λαχνοί! Όλα τα παιδάκια κέρδισαν ή πρέπει να αλλάξεις το εύρος αριθμών!",
+          );
+          return;
+        }
+
+        // Εφέ Rolling (γρήγορη εναλλαγή αριθμών)
+        drawBtn.disabled = true;
+        let counter = 0;
+        const shuffleInterval = setInterval(() => {
+          const tempRandom =
+            availableTickets[
+              Math.floor(Math.random() * availableTickets.length)
+            ];
+          winnerDisplay.textContent = tempRandom;
+        }, 50);
+
+        setTimeout(() => {
+          clearInterval(shuffleInterval);
+
+          const randomIndex = Math.floor(
+            Math.random() * availableTickets.length,
+          );
+          const luckyTicket = availableTickets[randomIndex];
+
+          // Ενημέρωση Οθόνης
+          winnerDisplay.textContent = luckyTicket;
+          giftDisplay.textContent = `🎉 Νικητής για: ${giftName}! 🥳`;
+
+          // Παιδικό animation "πήδημα/μεγέθυνση" στον αριθμό
+          winnerDisplay.classList.add("pulse");
+          setTimeout(() => {
+            winnerDisplay.classList.remove("pulse");
+          }, 200);
+
+          // ✨ ΦΑΝΤΑΣΜΑΓΟΡΙΚΟ ΕΦΕ ΚΟΜΦΕΤΙ ✨
+          confetti({
+            particleCount: 150,
+            spread: 80,
+            origin: { y: 0.6 },
+          });
+
+          // Αποθήκευση
+          winningHistory.unshift({
+            gift: giftName,
+            ticket: luckyTicket,
+          });
+
+          renderHistory();
+          updateNextGiftName(giftName);
+
+          drawBtn.disabled = false;
+        }, 1000); // 1 δευτερόλεπτο αγωνίας!
+      }
+
+      function renderHistory() {
+        if (winningHistory.length === 0) {
+          historyQueue.innerHTML =
+            '<span style="color: #a4b0be;">Εδώ θα φαίνονται οι τυχεροί!</span>';
+          return;
+        }
+
+        historyQueue.innerHTML = "";
+        winningHistory.forEach((item) => {
+          const div = document.createElement("div");
+          div.className = "queueChord";
+          div.innerHTML = `🎁 <strong>${item.gift}:</strong> Λαχνός <span style="color:#ff4757; font-weight:bold;">${item.ticket}</span>`;
+          historyQueue.appendChild(div);
+        });
+      }
+
+      function updateNextGiftName(currentName) {
+        const match = currentName.match(/(.*?)(\d+)$/);
+        if (match) {
+          const textPart = match[1];
+          const numPart = parseInt(match[2]);
+          giftInput.value = textPart + (numPart + 1);
+        }
+      }
+
+      function resetRaffle() {
+        if (
+          confirm(
+            "Θέλεις σίγουρα να σβήσεις το ιστορικό και να ξεκινήσεις από την αρχή;",
+          )
+        ) {
+          winningHistory = [];
+          winnerDisplay.textContent = "🎈";
+          giftDisplay.textContent = "🎁 Έτοιμοι για την κλήρωση!";
+          giftInput.value = "Δώρο 1";
+          renderHistory();
+        }
+      }
+
+      drawBtn.addEventListener("click", drawWinner);
+      resetBtn.addEventListener("click", resetRaffle);
+
+      document.addEventListener("keydown", (e) => {
+        if (document.activeElement.tagName === "INPUT") return;
+
+        if (e.code === "Space") {
+          e.preventDefault();
+          if (!drawBtn.disabled) {
+            drawWinner();
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
