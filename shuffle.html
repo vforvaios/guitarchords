@@ -282,8 +282,8 @@
       }
 
       function updateNextGiftName(currentName) {
-        // Αν το όνομα τελειώνει σε αριθμό, τον αυξάνουμε αυτόματα κατά 1 για ευκολία
-        const match = currentName.match(/(.*??)(\d+)$/);
+        // Διορθωμένο Regular Expression: (.*?) αντί για (.*??)
+        const match = currentName.match(/(.*?)(\d+)$/);
         if (match) {
           const textPart = match[1];
           const numPart = parseInt(match[2]);
