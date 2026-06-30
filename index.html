@@ -41,45 +41,92 @@
         margin-bottom: 30px;
       }
 
-      .currentChord {
-        font-size: 9rem;
-        font-weight: bold;
-        margin: 20px 0;
-        transition: transform 0.15s ease;
-        user-select: none;
+      /* 🎬 ΚΑΘΕΤΟ ΚΥΛΙΟΜΕΝΟ ΠΑΡΑΘΥΡΟ (VIEWPORT) + METRONOME BORDER */
+      .queue-container {
+        height: 280px;
+        overflow: hidden;
+        position: relative;
+        margin: 30px auto;
+        max-width: 300px;
+        border-radius: 20px;
+        background: rgba(29, 35, 48, 0.2);
+        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        border: 3px solid #1d2330;
+        transition: border-color 0.1s ease, box-shadow 0.1s ease;
       }
 
-      .pulse {
-        transform: scale(1.08);
+      /* Κλάσεις για το οπτικό φλας του μετρονόμου */
+      .queue-container.metro-accent {
+        border-color: #4f7cff;
+        box-shadow: 0 0 25px rgba(79, 124, 255, 0.6), inset 0 0 20px rgba(79, 124, 255, 0.2);
+      }
+
+      .queue-container.metro-normal {
+        border-color: #3a5cb3;
+        box-shadow: 0 0 15px rgba(58, 92, 179, 0.4), inset 0 0 20px rgba(58, 92, 179, 0.1);
       }
 
       .queue {
         display: flex;
-        gap: 12px;
-        justify-content: center;
-        flex-wrap: wrap;
-        margin: 30px 0;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
       }
 
       .queueChord {
-        background: #1d2330;
-        padding: 16px 22px;
-        border-radius: 14px;
+        height: 80px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
         font-size: 2rem;
-        min-width: 90px;
-        transition: all 0.2s ease;
-        opacity: 0.45;
+        transition: all 0.3s ease;
+        opacity: 0.2;
         user-select: none;
+        transform: scale(0.75);
       }
 
-      .active {
-        background: #4f7cff;
+      .queueChord.active {
+        color: #4f7cff;
         opacity: 1;
-        transform: scale(1.12);
+        transform: scale(1.4);
+        font-weight: bold;
+        text-shadow: 0 0 15px rgba(79, 124, 255, 0.4);
       }
 
-      .next {
-        opacity: 0.9;
+      .queueChord.next {
+        opacity: 0.6;
+        transform: scale(1);
+        color: #ffffff;
+      }
+
+      /* 🚥 ΟΠΤΙΚΟΙ ΚΥΚΛΟΙ ΜΕΤΡΟΝΟΜΟΥ (BEAT DOTS) */
+      .metro-dots {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin: 20px 0;
+      }
+
+      .dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 50px;
+        background: #1d2330;
+        transition: all 0.1s ease;
+      }
+
+      .dot.active-accent {
+        background: #4f7cff;
+        transform: scale(1.3);
+        box-shadow: 0 0 15px #4f7cff;
+      }
+
+      .dot.active-normal {
+        background: #a2b9ff;
+        transform: scale(1.15);
+        box-shadow: 0 0 10px #a2b9ff;
       }
 
       .controls {
@@ -135,6 +182,7 @@
         margin-top: 15px;
         font-size: 1.5rem;
         color: #4f7cff;
+        font-weight: bold;
       }
 
       .status {
@@ -152,9 +200,11 @@
         Random chord practice with BPM clock & live queue
       </div>
 
-      <div id="currentChord" class="currentChord">C</div>
+      <div class="queue-container" id="viewport">
+        <div id="queue" class="queue"></div>
+      </div>
 
-      <div id="queue" class="queue"></div>
+      <div id="metroDots" class="metro-dots"></div>
 
       <div id="beatDisplay" class="beat">Beat 1</div>
 
@@ -174,9 +224,8 @@
           <input type="number" id="queueLength" value="8" min="2" max="20" />
         </div>
 
-        <div class="control">
+        <div class="control" style="display: none;">
           <label>Display Mode</label>
-
           <select id="displayMode">
             <option value="queue">Queue</option>
             <option value="single">Single Chord</option>
@@ -185,7 +234,6 @@
 
         <div class="control">
           <label>Chord List</label>
-
           <input type="text" id="chordsInput" value="C,D,Em,E,A,Am,G,F,Dm" />
         </div>
 
@@ -204,9 +252,10 @@
     </div>
 
     <script>
-      const currentChordEl = document.getElementById("currentChord");
+      const viewport = document.getElementById("viewport");
       const queueEl = document.getElementById("queue");
       const beatDisplay = document.getElementById("beatDisplay");
+      const metroDotsEl = document.getElementById("metroDots");
 
       const bpmInput = document.getElementById("bpm");
       const beatsPerChordInput = document.getElementById("beatsPerChord");
@@ -215,14 +264,12 @@
 
       const toggleBtn = document.getElementById("toggleBtn");
       const shuffleBtn = document.getElementById("shuffleBtn");
-
       const displayMode = document.getElementById("displayMode");
 
       let interval = null;
       let running = false;
 
       let beat = 0;
-
       let queue = [];
       let currentIndex = 0;
 
@@ -233,21 +280,17 @@
         const gain = audioCtx.createGain();
 
         osc.type = "square";
-
         osc.frequency.value = accent ? 2200 : 1400;
-
         gain.gain.setValueAtTime(accent ? 0.45 : 0.28, audioCtx.currentTime);
 
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
         osc.start();
-
         gain.gain.exponentialRampToValueAtTime(
           0.0001,
           audioCtx.currentTime + 0.035,
         );
-
         osc.stop(audioCtx.currentTime + 0.035);
       }
 
@@ -260,44 +303,34 @@
 
       function generateQueue() {
         const pool = getChordPool();
-
         const length = parseInt(queueLengthInput.value);
 
         queue = [];
-
         let previous = null;
 
         for (let i = 0; i < length; i++) {
           let next;
-
           do {
             next = pool[Math.floor(Math.random() * pool.length)];
           } while (next === previous && pool.length > 1);
 
           queue.push(next);
-
           previous = next;
         }
 
         currentIndex = 0;
-
         renderQueue();
-
-        updateCurrentChord();
       }
 
       function renderQueue() {
         queueEl.innerHTML = "";
 
-        const mode = displayMode.value;
+        const spacer = document.createElement("div");
+        spacer.style.height = "100px";
+        queueEl.appendChild(spacer);
 
         queue.forEach((chord, index) => {
-          if (mode === "single" && index !== currentIndex) {
-            return;
-          }
-
           const div = document.createElement("div");
-
           div.className = "queueChord";
 
           if (index === currentIndex) {
@@ -307,31 +340,56 @@
           }
 
           div.textContent = chord;
-
           queueEl.appendChild(div);
         });
+
+        queueEl.style.transform = `translateY(-${currentIndex * 80}px)`;
       }
 
-      function updateCurrentChord() {
-        currentChordEl.textContent = queue[currentIndex];
+      // Δημιουργεί δυναμικά τις κουκκίδες ανάλογα με το "Beats per Chord"
+      function setupMetroDots() {
+        metroDotsEl.innerHTML = "";
+        const totalDots = parseInt(beatsPerChordInput.value);
+        for (let i = 0; i < totalDots; i++) {
+          const dot = document.createElement("div");
+          dot.className = "dot";
+          metroDotsEl.appendChild(dot);
+        }
+      }
 
-        currentChordEl.classList.add("pulse");
+      function triggerVisualFlash(beatInBar) {
+        // 1. Flash στο κεντρικό πλαίσιο
+        viewport.classList.remove("metro-accent", "metro-normal");
+        // Μικρό timeout για να αναγκάσουμε τον browser να ξανατρέξει το εφέ
+        void viewport.offsetWidth; 
+        
+        if (beatInBar === 1) {
+          viewport.classList.add("metro-accent");
+        } else {
+          viewport.classList.add("metro-normal");
+        }
 
-        setTimeout(() => {
-          currentChordEl.classList.remove("pulse");
-        }, 120);
-
-        renderQueue();
+        // 2. Ενημέρωση στις κουκκίδες (dots)
+        const dots = metroDotsEl.children;
+        for (let i = 0; i < dots.length; i++) {
+          dots[i].classList.remove("active-accent", "active-normal");
+          if (i === beatInBar - 1) {
+            if (beatInBar === 1) {
+              dots[i].classList.add("active-accent");
+            } else {
+              dots[i].classList.add("active-normal");
+            }
+          }
+        }
       }
 
       function advanceChord() {
         currentIndex++;
-
         if (currentIndex >= queue.length) {
           generateQueue();
+        } else {
+          renderQueue();
         }
-
-        updateCurrentChord();
       }
 
       function startTrainer() {
@@ -340,27 +398,24 @@
         }
 
         clearInterval(interval);
-
         generateQueue();
+        setupMetroDots();
 
         const bpm = parseInt(bpmInput.value);
-
         const beatsPerChord = parseInt(beatsPerChordInput.value);
-
         const intervalMs = (60 / bpm) * 1000;
 
         beat = 0;
-
         beatDisplay.textContent = "Beat 1";
 
         interval = setInterval(() => {
           beat++;
-
           const beatInBar = ((beat - 1) % beatsPerChord) + 1;
-
           beatDisplay.textContent = `Beat ${beatInBar}`;
-
+          
+          // Ήχος + Φλας
           playClick(beatInBar === 1);
+          triggerVisualFlash(beatInBar);
 
           if (beatInBar === 1 && beat > 1) {
             advanceChord();
@@ -368,16 +423,20 @@
         }, intervalMs);
 
         running = true;
-
         toggleBtn.textContent = "STOP";
       }
 
       function stopTrainer() {
         clearInterval(interval);
-
         running = false;
-
         toggleBtn.textContent = "START";
+        
+        // Καθαρισμός των visual εφέ όταν σταματάει
+        viewport.classList.remove("metro-accent", "metro-normal");
+        const dots = metroDotsEl.children;
+        for (let i = 0; i < dots.length; i++) {
+          dots[i].classList.remove("active-accent", "active-normal");
+        }
       }
 
       toggleBtn.addEventListener("click", () => {
@@ -390,20 +449,18 @@
 
       shuffleBtn.addEventListener("click", () => {
         generateQueue();
-
         beat = 0;
-
         beatDisplay.textContent = "Beat 1";
+        if(running) setupMetroDots();
       });
 
-      displayMode.addEventListener("change", () => {
-        renderQueue();
+      beatsPerChordInput.addEventListener("change", () => {
+        setupMetroDots();
       });
 
       document.addEventListener("keydown", (e) => {
         if (e.code === "Space") {
           e.preventDefault();
-
           if (!running) {
             startTrainer();
           } else {
@@ -413,6 +470,7 @@
       });
 
       generateQueue();
+      setupMetroDots();
     </script>
 
     <script>
